@@ -287,6 +287,9 @@ AFRAME.registerComponent('super-hands', {
     const hoverEls = this.hoverEls;
     const hitElIndex = this.hoverEls.indexOf(hitEl);
     let hoverNeedsUpdate = false;
+    if (dist && intersection.instanceId !== undefined) hitEl.object3D.userData = {
+      instanceId: intersection.instanceId
+    };
     if (hitElIndex === -1) {
       hoverNeedsUpdate = true;
       // insert in order of distance when available
@@ -842,14 +845,14 @@ AFRAME.registerComponent('droppable', {
 
 /* global AFRAME, THREE */
 const inherit = AFRAME.utils.extendDeep;
-const physicsCore = require('./prototypes/physics-grab-proto.js');
-const buttonsCore = require('./prototypes/buttons-proto.js');
+const physicsCore = require("./prototypes/physics-grab-proto.js");
+const buttonsCore = require("./prototypes/buttons-proto.js");
 // new object with all core modules
 const base = inherit({}, physicsCore, buttonsCore);
-AFRAME.registerComponent('grabbable', inherit(base, {
+AFRAME.registerComponent("grabbable", inherit(base, {
   schema: {
     maxGrabbers: {
-      type: 'int',
+      type: "int",
       default: NaN
     },
     invert: {
@@ -860,9 +863,10 @@ AFRAME.registerComponent('grabbable', inherit(base, {
     }
   },
   init: function () {
-    this.GRABBED_STATE = 'grabbed';
-    this.GRAB_EVENT = 'grab-start';
-    this.UNGRAB_EVENT = 'grab-end';
+    console.log("Grabbable component initialized");
+    this.GRABBED_STATE = "grabbed";
+    this.GRAB_EVENT = "grab-start";
+    this.UNGRAB_EVENT = "grab-end";
     this.grabbed = false;
     this.grabbers = [];
     this.constraints = new Map();
@@ -887,9 +891,15 @@ AFRAME.registerComponent('grabbable', inherit(base, {
     this.deltaPosition = new THREE.Vector3();
     this.targetPosition = new THREE.Vector3();
     this.physicsInit();
-    this.el.addEventListener(this.GRAB_EVENT, e => this.start(e));
-    this.el.addEventListener(this.UNGRAB_EVENT, e => this.end(e));
-    this.el.addEventListener('mouseout', e => this.lostGrabber(e));
+    this.el.addEventListener(this.GRAB_EVENT, e => {
+      console.log("Grab started");
+      this.start(e);
+    });
+    this.el.addEventListener(this.UNGRAB_EVENT, e => {
+      console.log("Grab ended");
+      this.end(e);
+    });
+    this.el.addEventListener("mouseout", e => this.lostGrabber(e));
   },
   update: function () {
     this.physicsUpdate();
@@ -909,11 +919,11 @@ AFRAME.registerComponent('grabbable', inherit(base, {
         if (this.deltaPositionIsValid) {
           // relative position changes work better with nested entities
           this.deltaPosition.sub(this.targetPosition);
-          entityPosition = this.el.getAttribute('position');
+          entityPosition = this.el.getAttribute("position");
           this.destPosition.x = entityPosition.x - this.deltaPosition.x * this.xFactor;
           this.destPosition.y = entityPosition.y - this.deltaPosition.y * this.yFactor;
           this.destPosition.z = entityPosition.z - this.deltaPosition.z * this.zFactor;
-          this.el.setAttribute('position', this.destPosition);
+          this.el.setAttribute("position", this.destPosition);
         } else {
           this.deltaPositionIsValid = true;
         }
@@ -924,7 +934,20 @@ AFRAME.registerComponent('grabbable', inherit(base, {
   remove: function () {
     this.el.removeEventListener(this.GRAB_EVENT, this.start);
     this.el.removeEventListener(this.UNGRAB_EVENT, this.end);
+    this.el.removeEventListener("mouseout", this.lostGrabber);
+
+    // Clear references to grabbers and constraints
+    this.grabbers.length = 0;
+    this.grabber = null;
+    this.constraints.clear();
+
+    // Reset flags and states
+    this.grabbed = false;
+    this.el.removeState(this.GRABBED_STATE);
+
+    // Clean up physics resources if applicable
     this.physicsRemove();
+    console.log("succesfully removed");
   },
   start: function (evt) {
     if (evt.defaultPrevented || !this.startButtonOk(evt)) {
@@ -934,7 +957,7 @@ AFRAME.registerComponent('grabbable', inherit(base, {
     const grabAvailable = !Number.isFinite(this.data.maxGrabbers) || this.grabbers.length < this.data.maxGrabbers;
     if (this.grabbers.indexOf(evt.detail.hand) === -1 && grabAvailable) {
       if (!evt.detail.hand.object3D) {
-        console.warn('grabbable entities must have an object3D');
+        console.warn("grabbable entities must have an object3D");
         return;
       }
       this.grabbers.push(evt.detail.hand);
@@ -976,7 +999,7 @@ AFRAME.registerComponent('grabbable', inherit(base, {
       if (!this.grabber) {
         return false;
       }
-      const raycaster = this.grabber.getAttribute('raycaster');
+      const raycaster = this.grabber.getAttribute("raycaster");
       this.deltaPositionIsValid = false;
       this.grabDistance = this.el.object3D.getWorldPosition(objPos).distanceTo(this.grabber.object3D.getWorldPosition(grabPos));
       if (raycaster) {
@@ -1204,7 +1227,6 @@ AFRAME.registerComponent('stretchable', inherit(base, {
       evt.preventDefault();
     } // gesture accepted
   },
-
   end: function (evt) {
     const stretcherIndex = this.stretchers.indexOf(evt.detail.hand);
     if (evt.defaultPrevented || !this.endButtonOk(evt)) {
