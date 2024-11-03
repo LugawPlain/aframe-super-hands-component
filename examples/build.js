@@ -49460,16 +49460,14 @@ AFRAME.registerComponent(
       this.deltaPosition = new THREE.Vector3();
       this.targetPosition = new THREE.Vector3();
       this.physicsInit();
+      // Store bound event handlers
+      this.onGrabStart = this.start.bind(this);
+      this.onGrabEnd = this.end.bind(this);
+      this.onMouseOut = this.lostGrabber.bind(this);
 
-      this.el.addEventListener(this.GRAB_EVENT, (e) => {
-        console.log("Grab started");
-        this.start(e);
-      });
-      this.el.addEventListener(this.UNGRAB_EVENT, (e) => {
-        console.log("Grab ended");
-        this.end(e);
-      });
-      this.el.addEventListener("mouseout", (e) => this.lostGrabber(e));
+      this.el.addEventListener(this.GRAB_EVENT, this.onGrabStart);
+      this.el.addEventListener(this.UNGRAB_EVENT, this.onGrabEnd);
+      this.el.addEventListener("mouseout", this.onMouseOut);
     },
     update: function () {
       this.physicsUpdate();
@@ -49510,9 +49508,9 @@ AFRAME.registerComponent(
       };
     })(),
     remove: function () {
-      this.el.removeEventListener(this.GRAB_EVENT, this.start);
-      this.el.removeEventListener(this.UNGRAB_EVENT, this.end);
-      this.el.removeEventListener("mouseout", this.lostGrabber);
+      this.el.removeEventListener(this.GRAB_EVENT, this.onGrabStart);
+      this.el.removeEventListener(this.UNGRAB_EVENT, this.onGrabEnd);
+      this.el.removeEventListener("mouseout", this.onMouseOut);
 
       // Clear references to grabbers and constraints
       this.grabbers.length = 0;
@@ -49525,6 +49523,9 @@ AFRAME.registerComponent(
 
       // Clean up physics resources if applicable
       this.physicsRemove();
+      this.onGrabStart = null;
+      this.onGrabEnd = null;
+      this.onMouseOut = null;
       console.log("succesfully removed");
     },
     start: function (evt) {
